@@ -16,6 +16,11 @@
 
 package io.moquette.broker.subscriptions;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.Data;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Serializable;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -24,20 +29,20 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+@Data
 public class Topic implements Serializable, Comparable<Topic> {
 
     private static final Logger LOG = LoggerFactory.getLogger(Topic.class);
 
     private static final long serialVersionUID = 2438799283749822L;
 
-    private final String topic;
+    private String topic;
 
-    private transient List<Token> tokens;
+    private List<Token> tokens;
 
-    private transient boolean valid;
+    private boolean valid;
+
+    public Topic() {}
 
     /**
      * Factory method
@@ -133,6 +138,7 @@ public class Topic implements Serializable, Comparable<Topic> {
         return tokens.get(0);
     }
 
+    @JsonIgnore
     public boolean isEmpty() {
         final List<Token> tokens = getTokens();
         return tokens == null || tokens.isEmpty();
@@ -156,6 +162,10 @@ public class Topic implements Serializable, Comparable<Topic> {
             getTokens();
 
         return valid;
+    }
+
+    public String getTopic() {
+        return this.topic;
     }
 
     /**
@@ -207,7 +217,7 @@ public class Topic implements Serializable, Comparable<Topic> {
         }
         Topic other = (Topic) obj;
 
-        return Objects.equals(this.topic, other.topic);
+        return Objects.equals(this.topic, other.getTopic());
     }
 
     @Override

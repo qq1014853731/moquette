@@ -16,15 +16,20 @@
 
 package io.moquette.broker.subscriptions;
 
+import lombok.Data;
+
 /**
  * Internal use only class.
  */
+@Data
 public class Token {
 
     static final Token EMPTY = new Token("");
     static final Token MULTI = new Token("#");
     static final Token SINGLE = new Token("+");
-    final String name;
+    private String name;
+
+    public Token() {}
 
     protected Token(String s) {
         name = s;
@@ -62,7 +67,7 @@ public class Token {
             return false;
         }
         final Token other = (Token) obj;
-        if ((this.name == null) ? (other.name != null) : !this.name.equals(other.name)) {
+        if ((this.name == null) ? (other.getName() != null) : !this.name.equals(other.getName())) {
             return false;
         }
         return true;

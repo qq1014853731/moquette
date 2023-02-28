@@ -16,45 +16,36 @@
 
 package io.moquette.broker;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.security.GeneralSecurityException;
-import java.security.KeyManagementException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
-import java.util.Collections;
-import java.util.Objects;
-
 import io.moquette.BrokerConstants;
 import io.moquette.broker.config.IConfig;
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslProvider;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.TrustManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.TrustManagerFactory;
+import java.io.*;
+import java.net.URL;
+import java.security.*;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
+import java.util.Collections;
+import java.util.Objects;
 
 /**
  * Moquette integration implementation to load SSL certificate from local filesystem path configured in
  * config file.
  */
-class DefaultMoquetteSslContextCreator implements ISslContextCreator {
+public class DefaultMoquetteSslContextCreator implements ISslContextCreator {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultMoquetteSslContextCreator.class);
 
     private final IConfig props;
 
-    DefaultMoquetteSslContextCreator(IConfig props) {
+    public DefaultMoquetteSslContextCreator(IConfig props) {
         this.props = Objects.requireNonNull(props);
     }
 

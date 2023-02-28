@@ -2,14 +2,18 @@ package io.moquette.broker;
 
 import io.moquette.broker.subscriptions.Topic;
 import io.netty.handler.codec.mqtt.MqttQoS;
+import lombok.Data;
 
 import java.io.Serializable;
 
+@Data
 public class RetainedMessage implements Serializable{
 
-    private final Topic topic;
-    private final MqttQoS qos;
-    private final byte[] payload;
+    private Topic topic;
+    private MqttQoS qos;
+    private byte[] payload;
+
+    public RetainedMessage() {}
 
     public RetainedMessage(Topic topic, MqttQoS qos, byte[] payload) {
         this.topic = topic;

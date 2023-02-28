@@ -15,37 +15,26 @@
  */
 package io.moquette.broker;
 
+import cn.hutool.extra.spring.SpringUtil;
 import io.moquette.BrokerConstants;
-import io.moquette.broker.config.FileResourceLoader;
-import io.moquette.broker.config.IConfig;
-import io.moquette.broker.config.IResourceLoader;
-import io.moquette.broker.config.MemoryConfig;
-import io.moquette.broker.config.ResourceLoaderConfig;
-import io.moquette.broker.security.ACLFileParser;
-import io.moquette.broker.security.AcceptAllAuthenticator;
-import io.moquette.broker.security.DenyAllAuthorizatorPolicy;
-import io.moquette.broker.security.IAuthenticator;
-import io.moquette.broker.security.IAuthorizatorPolicy;
-import io.moquette.broker.security.PermitAllAuthorizatorPolicy;
-import io.moquette.broker.security.ResourceAuthenticator;
+import io.moquette.broker.config.*;
+import io.moquette.broker.security.*;
+import io.moquette.broker.subscriptions.CTrieSubscriptionDirectory;
+import io.moquette.broker.subscriptions.ISubscriptionsDirectory;
 import io.moquette.broker.unsafequeues.QueueException;
+import io.moquette.interception.BrokerInterceptor;
 import io.moquette.interception.InterceptHandler;
 import io.moquette.persistence.H2Builder;
 import io.moquette.persistence.MemorySubscriptionsRepository;
-import io.moquette.interception.BrokerInterceptor;
-import io.moquette.broker.subscriptions.CTrieSubscriptionDirectory;
-import io.moquette.broker.subscriptions.ISubscriptionsDirectory;
+import io.moquette.persistence.RedisSubscriptionRepository;
 import io.moquette.persistence.SegmentQueueRepository;
+import io.moquette.spring.support.RedisRepositorySupport;
+import io.moquette.spring.support.RepositorySupport;
 import io.netty.handler.codec.mqtt.MqttPublishMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -53,13 +42,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.rmi.RemoteException;
 import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -226,10 +211,27 @@ public class Server {
             subscriptionsRepository = h2Builder.subscriptionsRepository();
             retainedRepository = h2Builder.retainedRepository();
         } else {
-            LOG.trace("Configuring in-memory subscriptions store");
-            subscriptionsRepository = new MemorySubscriptionsRepository();
-            queueRepository = new MemoryQueueRepository();
-            retainedRepository = new MemoryRetainedRepository();
+            RepositorySupport repositorySupport = null;
+            try {
+                repositorySupport = SpringUtil.getBean(RepositorySupport.class);
+            } catch (Exception ignore) {}
+            if (repositorySupport == null) {
+                // load default repository
+                LOG.trace("Configuring in-memory subscriptions store");
+                subscriptionsRepository = new MemorySubscriptionsRepository();
+                queueRepository = new MemoryQueueRepository();
+                retainedRepository = new MemoryRetainedRepository();
+            } else if (repositorySupport instanceof RedisRepositorySupport) {
+                // load redis repository
+                RedisRepositorySupport redisRepositorySupport = (RedisRepositorySupport) repositorySupport;
+                subscriptionsRepository = new RedisSubscriptionRepository(redisRepositorySupport);
+                queueRepository = new RedisQueueRepository(redisRepositorySupport);
+                retainedRepository = new RedisRetainedRepository(redisRepositorySupport);
+            } else {
+                // TODO load another repository. eg: mybatis and spring-cache and more....
+                throw new RemoteException("unknow repository support type!");
+            }
+
         }
 
         ISubscriptionsDirectory subscriptions = new CTrieSubscriptionDirectory();

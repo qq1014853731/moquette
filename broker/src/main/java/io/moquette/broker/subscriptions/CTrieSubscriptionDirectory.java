@@ -57,7 +57,7 @@ public class CTrieSubscriptionDirectory implements ISubscriptionsDirectory {
         final Set<Subscription> subscriptions = subscriptionsRepository.listAllSubscriptions();
         final Set<String> clientIds = new HashSet<>(subscriptions.size());
         for (Subscription subscription : subscriptions) {
-            clientIds.add(subscription.clientId);
+            clientIds.add(subscription.getClientId());
         }
         return clientIds;
     }
@@ -86,10 +86,10 @@ public class CTrieSubscriptionDirectory implements ISubscriptionsDirectory {
 
         Map<String, Subscription> subsGroupedByClient = new HashMap<>();
         for (Subscription sub : subscriptions) {
-            Subscription existingSub = subsGroupedByClient.get(sub.clientId);
+            Subscription existingSub = subsGroupedByClient.get(sub.getClientId());
             // update the selected subscriptions if not present or if has a greater qos
             if (existingSub == null || existingSub.qosLessThan(sub)) {
-                subsGroupedByClient.put(sub.clientId, sub);
+                subsGroupedByClient.put(sub.getClientId(), sub);
             }
         }
         return new HashSet<>(subsGroupedByClient.values());

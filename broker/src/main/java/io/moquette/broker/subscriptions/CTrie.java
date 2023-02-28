@@ -91,7 +91,7 @@ public class CTrie {
     public void addToTree(Subscription newSubscription) {
         Action res;
         do {
-            res = insert(newSubscription.topicFilter, this.root, newSubscription);
+            res = insert(newSubscription.getTopicFilter(), this.root, newSubscription);
         } while (res == Action.REPEAT);
     }
 

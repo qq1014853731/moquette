@@ -26,9 +26,11 @@ import java.io.Serializable;
 public final class Subscription implements Serializable, Comparable<Subscription> {
 
     private static final long serialVersionUID = -3383457629635732794L;
-    private final MqttQoS requestedQos; // max QoS acceptable
-    final String clientId;
-    final Topic topicFilter;
+    private MqttQoS requestedQos; // max QoS acceptable
+    private String clientId;
+    private Topic topicFilter;
+
+    public Subscription() {}
 
     public Subscription(String clientId, Topic topicFilter, MqttQoS requestedQos) {
         this.requestedQos = requestedQos;
@@ -37,9 +39,9 @@ public final class Subscription implements Serializable, Comparable<Subscription
     }
 
     public Subscription(Subscription orig) {
-        this.requestedQos = orig.requestedQos;
-        this.clientId = orig.clientId;
-        this.topicFilter = orig.topicFilter;
+        this.requestedQos = orig.getRequestedQos();
+        this.clientId = orig.getClientId();
+        this.topicFilter = orig.getTopicFilter();
     }
 
     public String getClientId() {
@@ -55,21 +57,24 @@ public final class Subscription implements Serializable, Comparable<Subscription
     }
 
     public boolean qosLessThan(Subscription sub) {
-        return requestedQos.value() < sub.requestedQos.value();
+        return requestedQos.value() < sub.getRequestedQos().value();
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
+        if (this == o) {
             return true;
-        if (o == null || getClass() != o.getClass())
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
+        }
 
         Subscription that = (Subscription) o;
 
-        if (clientId != null ? !clientId.equals(that.clientId) : that.clientId != null)
+        if (clientId != null ? !clientId.equals(that.getClientId()) : that.getClientId() != null) {
             return false;
-        return !(topicFilter != null ? !topicFilter.equals(that.topicFilter) : that.topicFilter != null);
+        }
+        return !(topicFilter != null ? !topicFilter.equals(that.getTopicFilter()) : that.getTopicFilter() != null);
     }
 
     @Override
