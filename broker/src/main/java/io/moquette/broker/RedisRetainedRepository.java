@@ -1,6 +1,5 @@
 package io.moquette.broker;
 
-import cn.hutool.core.collection.CollUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.moquette.broker.subscriptions.Topic;
 import io.moquette.spring.support.RedisRepositorySupport;
@@ -22,7 +21,7 @@ public class RedisRetainedRepository implements IRetainedRepository {
     private final StringRedisTemplate redisTemplate;
 
     /**
-     * key format: keyPrefix + clientId + ":" + topic
+     * key format: keyPrefix + topic
      */
     private final String keyPrefix;
     private final ObjectMapper objectMapper;
@@ -30,31 +29,29 @@ public class RedisRetainedRepository implements IRetainedRepository {
     public RedisRetainedRepository(RedisRepositorySupport redisRepositorySupport) {
         this.redisTemplate = redisRepositorySupport.getTemplate();
         // add retained prefix
-        this.keyPrefix = redisRepositorySupport.getKeyPrefix() + "retained:";
+        this.keyPrefix = redisRepositorySupport.getKeyPrefix() + redisRepositorySupport.getRetainedPrefix();
         this.objectMapper = redisRepositorySupport.getObjectMapper();
     }
 
     @Override
     public void cleanRetained(Topic topic) {
-        String key = keyPrefix + topic.getTopic();
-        redisTemplate.delete(key);
+        redisTemplate.delete(keyPrefix + topic.getTopic());
     }
 
     @SneakyThrows
     @Override
     public void retain(Topic topic, MqttPublishMessage msg) {
-        String key = keyPrefix + topic.getTopic();
         final ByteBuf payload = msg.content();
         byte[] rawPayload = new byte[payload.readableBytes()];
         payload.getBytes(0, rawPayload);
         final RetainedMessage toStore = new RetainedMessage(topic, msg.fixedHeader().qosLevel(), rawPayload);
-        redisTemplate.opsForSet().add(key, objectMapper.writeValueAsString(toStore));
+        redisTemplate.opsForSet().add(keyPrefix + topic.getTopic(), objectMapper.writeValueAsString(toStore));
     }
 
     @Override
     public boolean isEmpty() {
         Set<String> keys = redisTemplate.keys(keyPrefix + ".*");
-        return CollUtil.isEmpty(keys);
+        return keys == null || keys.isEmpty();
     }
 
     @SneakyThrows
@@ -71,8 +68,5 @@ public class RedisRetainedRepository implements IRetainedRepository {
             retainedMessages.add(retainedMessage);
         }
         return retainedMessages;
-    }
-
-    public static void main(String[] args) {
     }
 }

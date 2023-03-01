@@ -26,6 +26,37 @@ public class RedisRepositorySupport implements RepositorySupport {
     @NonNull
     private String keyPrefix = "moquette:";
 
+    /**
+     * redis subscription value key prefix
+     * redis final key prefix: keyPrefix + subscriptionPrefix
+     */
+    @Getter
+    @Setter
+    @NonNull
+    private String subscriptionPrefix = "subscription:";
+
+    /**
+     * redis retained set key prefix
+     * suffix: topic
+     * redis final key prefix: keyPrefix + retainedPrefix
+     */
+    @Getter
+    @Setter
+    @NonNull
+    private String retainedPrefix = "retained:";
+
+    /**
+     * redis queue hash key prefix
+     * redis final key prefix: keyPrefix + queuePrefix
+     */
+    @Getter
+    @Setter
+    @NonNull
+    private String queuePrefix = "queue:";
+
+    /**
+     * provide a serialization method  for redis value
+     */
     @Setter
     private ObjectMapper objectMapper = null;
 
