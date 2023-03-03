@@ -15,9 +15,9 @@
     <!-- Includes all modules -->
     <dependencies>
         <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>moquette-broker</artifactId>
-            <version>${project.version}</version>
+            <groupId>io.moquette</groupId>
+            <artifactId>moquette-springboot-broker</artifactId>
+            <version>${revision}</version>
         </dependency>
 
     </dependencies>

@@ -4,8 +4,6 @@ import cn.hutool.core.convert.Convert;
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.system.SystemUtil;
-import io.moquette.broker.DefaultMoquetteSslContextCreator;
-import io.moquette.broker.ISslContextCreator;
 import io.moquette.broker.Server;
 import io.moquette.broker.config.ClasspathResourceLoader;
 import io.moquette.broker.config.IConfig;
@@ -13,8 +11,6 @@ import io.moquette.broker.config.MemoryConfig;
 import io.moquette.broker.config.ResourceLoaderConfig;
 import io.moquette.interception.InterceptHandler;
 import io.moquette.spring.BrokerProperties;
-import io.moquette.spring.ReloadableSslContext;
-import io.netty.handler.ssl.SslContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
@@ -23,6 +19,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -38,6 +35,7 @@ import java.util.Set;
  */
 @Slf4j
 @RequiredArgsConstructor
+@Configuration
 public class MqttServerAutoConfiguration implements ApplicationContextAware {
 
     public static ApplicationContext applicationContext;
@@ -51,9 +49,9 @@ public class MqttServerAutoConfiguration implements ApplicationContextAware {
 	/**
 	 * @return 默认配置文件配置
 	 */
-	@Bean(name = "mqttDefaultConfig")
+	@Bean
 	@ConditionalOnMissingBean(IConfig.class)
-	public IConfig mqttDefaultConfig() {
+	public IConfig config() {
 		ClasspathResourceLoader classpathResourceLoader = new ClasspathResourceLoader(IConfig.DEFAULT_CONFIG);
 		return new ResourceLoaderConfig(classpathResourceLoader);
 	}
@@ -64,13 +62,13 @@ public class MqttServerAutoConfiguration implements ApplicationContextAware {
 	 * @return 自定义配置
 	 */
 	@Bean
-	@ConditionalOnBean(value = {IConfig.class}, name = "mqttDefaultConfig")
-	public BrokerProperties brokerProperties(IConfig mqttDefaultConfig, List<MqttConfigurationCustomizer> mqttConfigurationCustomizers) {
+	@ConditionalOnBean(value = {IConfig.class})
+	public BrokerProperties brokerProperties(IConfig config, List<MqttConfigurationCustomizer> mqttConfigurationCustomizers) {
 		// config转properties
-		Field[] fields = ReflectUtil.getFields(mqttDefaultConfig.getClass(), field -> field.getType() == Properties.class);
+		Field[] fields = ReflectUtil.getFields(config.getClass(), field -> field.getType() == Properties.class);
 		Assert.notEmpty(fields, "BrokerProperties无法获取properties属性");
 		Field propertiesField = fields[0];
-		Properties properties = (Properties) ReflectUtil.getFieldValue(mqttDefaultConfig, propertiesField);
+		Properties properties = (Properties) ReflectUtil.getFieldValue(config, propertiesField);
 
 		BrokerProperties brokerProperties = new BrokerProperties();
 		Collection<String> values = BrokerProperties.FIELD_NAME_CACHE_MAP.values();
@@ -107,8 +105,7 @@ public class MqttServerAutoConfiguration implements ApplicationContextAware {
 	@ConditionalOnMissingBean(Server.class)
 	@ConditionalOnBean(BrokerProperties.class)
 	public Server server(BrokerProperties brokerProperties,
-						 List<InterceptHandler> interceptHandlers,
-                         ReloadableSslContext reloadableSslContext) throws IOException {
+						 List<InterceptHandler> interceptHandlers) throws IOException {
 		Properties properties = new Properties();
 		Set<String> fieldNames = BrokerProperties.FIELD_NAME_CACHE_MAP.keySet();
 		for (String fieldName : fieldNames) {
@@ -120,19 +117,11 @@ public class MqttServerAutoConfiguration implements ApplicationContextAware {
 		}
 		IConfig config = new MemoryConfig(properties);
 		Server server = new Server();
-		server.startServer(config, interceptHandlers, () -> reloadableSslContext, null, null);
+		server.startServer(config, interceptHandlers, null, null, null);
 		printSuccess(brokerProperties);
 		Runtime.getRuntime().addShutdownHook(new Thread(server::stopServer));
 		return server;
 	}
-
-    @Bean
-    @ConditionalOnMissingBean(ISslContextCreator.class)
-    @ConditionalOnBean(IConfig.class)
-    public ReloadableSslContext sslContextCreator(IConfig props) {
-        SslContext sslContext = new DefaultMoquetteSslContextCreator(props).initSSLContext();
-        return new ReloadableSslContext(sslContext);
-    }
 
 	public void printSuccess(BrokerProperties brokerProperties) {
 		Integer port = brokerProperties.getPort();

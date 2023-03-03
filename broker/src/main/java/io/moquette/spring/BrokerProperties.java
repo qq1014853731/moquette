@@ -30,7 +30,13 @@ public class BrokerProperties {
 	/**
 	 * @see BrokerConstants#PERSISTENT_STORE_PROPERTY_NAME
 	 */
+    @Deprecated
 	private String persistentStore;
+
+    /**
+     * @see BrokerConstants#PERSISTENCE_ENABLED_PROPERTY_NAME
+     */
+    private Boolean persistenceEnabled;
 
 	/**
 	 * @see BrokerConstants#AUTOSAVE_INTERVAL_PROPERTY_NAME
@@ -304,6 +310,7 @@ public class BrokerProperties {
 			put("interceptHandler", "intercept.handler");
 			put("interceptThreadPoolSize", "intercept.thread_pool.size");
 			put("persistentStore", "persistent_store");
+			put("persistenceEnabled", "persistence_enabled");
 			put("autosaveInterval", "autosave_interval");
 			put("passwordFile", "password_file");
 			put("port", "port");

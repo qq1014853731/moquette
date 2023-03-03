@@ -31,8 +31,7 @@ import io.moquette.spring.core.MqttServerAutoConfiguration;
 import io.moquette.spring.support.RedisRepositorySupport;
 import io.moquette.spring.support.RepositorySupport;
 import io.netty.handler.codec.mqtt.MqttPublishMessage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
@@ -50,9 +49,9 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static io.moquette.logging.LoggingUtils.getInterceptorIds;
 
+@Slf4j
 public class Server {
 
-    private static final Logger LOG = LoggerFactory.getLogger(io.moquette.broker.Server.class);
     public static final String MOQUETTE_VERSION = "0.17-SNAPSHOT";
 
     private ScheduledExecutorService scheduler;
@@ -83,7 +82,7 @@ public class Server {
      */
     public void startServer() throws IOException {
         File defaultConfigurationFile = defaultConfigFile();
-        LOG.info("Starting Moquette integration. Configuration file path={}", defaultConfigurationFile.getAbsolutePath());
+        log.info("Starting Moquette integration. Configuration file path={}", defaultConfigurationFile.getAbsolutePath());
         IResourceLoader filesystemLoader = new FileResourceLoader(defaultConfigurationFile);
         final IConfig config = new ResourceLoaderConfig(filesystemLoader);
         startServer(config);
@@ -106,7 +105,7 @@ public class Server {
      * @throws IOException in case of any IO Error.
      */
     public void startServer(File configFile) throws IOException {
-        LOG.info("Starting Moquette integration. Configuration file path: {}", configFile.getAbsolutePath());
+        log.info("Starting Moquette integration. Configuration file path: {}", configFile.getAbsolutePath());
         IResourceLoader filesystemLoader = new FileResourceLoader(configFile);
         final IConfig config = new ResourceLoaderConfig(filesystemLoader);
         startServer(config);
@@ -125,7 +124,7 @@ public class Server {
      * @throws IOException in case of any IO Error.
      */
     public void startServer(Properties configProps) throws IOException {
-        LOG.debug("Starting Moquette integration using properties object");
+        log.debug("Starting Moquette integration using properties object");
         final IConfig config = new MemoryConfig(configProps);
         startServer(config);
     }
@@ -137,7 +136,7 @@ public class Server {
      * @throws IOException in case of any IO Error.
      */
     public void startServer(IConfig config) throws IOException {
-        LOG.debug("Starting Moquette integration using IConfig instance");
+        log.debug("Starting Moquette integration using IConfig instance");
         startServer(config, null);
     }
 
@@ -150,7 +149,7 @@ public class Server {
      * @throws IOException in case of any IO Error.
      */
     public void startServer(IConfig config, List<? extends InterceptHandler> handlers) throws IOException {
-        LOG.debug("Starting moquette integration using IConfig instance and intercept handlers");
+        log.debug("Starting moquette integration using IConfig instance and intercept handlers");
         startServer(config, handlers, null, null, null);
     }
 
@@ -160,7 +159,7 @@ public class Server {
         if (handlers == null) {
             handlers = Collections.emptyList();
         }
-        LOG.trace("Starting Moquette Server. MQTT message interceptors={}", getInterceptorIds(handlers));
+        log.trace("Starting Moquette Server. MQTT message interceptors={}", getInterceptorIds(handlers));
 
         scheduler = Executors.newScheduledThreadPool(1);
 
@@ -169,9 +168,9 @@ public class Server {
             config.setProperty(BrokerConstants.INTERCEPT_HANDLER_PROPERTY_NAME, handlerProp);
         }
         initInterceptors(config, handlers);
-        LOG.debug("Initialized MQTT protocol processor");
+        log.debug("Initialized MQTT protocol processor");
         if (sslCtxCreator == null) {
-            LOG.info("Using default SSL context creator");
+            log.info("Using default SSL context creator");
             sslCtxCreator = new DefaultMoquetteSslContextCreator(config);
         }
         authenticator = initializeAuthenticator(authenticator, config);
@@ -182,32 +181,32 @@ public class Server {
         final IRetainedRepository retainedRepository;
 
         if (config.getProperty(BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME) != null) {
-            LOG.warn("Using a deprecated setting {} please update to {}",
+            log.warn("Using a deprecated setting {} please update to {}",
                 BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME, BrokerConstants.DATA_PATH_PROPERTY_NAME);
-            LOG.warn("Forcing {} to true", BrokerConstants.PERSISTENCE_ENABLED_PROPERTY_NAME);
+            log.warn("Forcing {} to true", BrokerConstants.PERSISTENCE_ENABLED_PROPERTY_NAME);
             config.setProperty(BrokerConstants.PERSISTENCE_ENABLED_PROPERTY_NAME, Boolean.TRUE.toString());
 
             final String persistencePath = config.getProperty(BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME);
             final String dataPath = persistencePath.substring(0, persistencePath.lastIndexOf("/"));
-            LOG.warn("Forcing {} to {}", BrokerConstants.DATA_PATH_PROPERTY_NAME, dataPath);
+            log.warn("Forcing {} to {}", BrokerConstants.DATA_PATH_PROPERTY_NAME, dataPath);
             config.setProperty(BrokerConstants.DATA_PATH_PROPERTY_NAME, dataPath);
         }
 
-        if (Boolean.parseBoolean(config.getProperty(BrokerConstants.PERSISTENCE_ENABLED_PROPERTY_NAME))) {
+        if (Boolean.parseBoolean(config.getProperty(BrokerConstants.PERSISTENCE_ENABLED_PROPERTY_NAME, Boolean.FALSE.toString()))) {
             final Path dataPath = Paths.get(config.getProperty(BrokerConstants.DATA_PATH_PROPERTY_NAME));
             if (!dataPath.toFile().exists()) {
                 if (dataPath.toFile().mkdirs()) {
-                    LOG.debug("Created data_path {} folder", dataPath);
+                    log.debug("Created data_path {} folder", dataPath);
                 } else {
-                    LOG.warn("Impossible to create the data_path {}", dataPath);
+                    log.warn("Impossible to create the data_path {}", dataPath);
                 }
             }
 
-            LOG.debug("Configuring persistent subscriptions store and queues, path: {}", dataPath);
+            log.debug("Configuring persistent subscriptions store and queues, path: {}", dataPath);
             final int autosaveInterval = Integer.parseInt(config.getProperty(BrokerConstants.AUTOSAVE_INTERVAL_PROPERTY_NAME, "30"));
             h2Builder = new H2Builder(scheduler, dataPath, autosaveInterval).initStore();
             queueRepository = initQueuesRepository(config, dataPath, h2Builder);
-            LOG.trace("Configuring H2 subscriptions repository");
+            log.trace("Configuring H2 subscriptions repository");
             subscriptionsRepository = h2Builder.subscriptionsRepository();
             retainedRepository = h2Builder.retainedRepository();
         } else {
@@ -217,7 +216,7 @@ public class Server {
             } catch (Exception ignore) {}
             if (repositorySupport == null) {
                 // load default repository
-                LOG.trace("Configuring in-memory subscriptions store");
+                log.trace("Configuring in-memory subscriptions store");
                 subscriptionsRepository = new MemorySubscriptionsRepository();
                 queueRepository = new MemoryQueueRepository();
                 retainedRepository = new MemoryRetainedRepository();
@@ -250,7 +249,7 @@ public class Server {
         acceptor.initialize(mqttHandler, config, sslCtxCreator);
 
         final long startTime = System.currentTimeMillis() - start;
-        LOG.info("Moquette integration has been started successfully in {} ms", startTime);
+        log.info("Moquette integration has been started successfully in {} ms", startTime);
 
         if (config.boolProp(BrokerConstants.ENABLE_TELEMETRY_NAME, true)) {
             collectAndSendTelemetryDataAsynch(config);
@@ -263,10 +262,10 @@ public class Server {
         final IQueueRepository queueRepository;
         final String queueType = config.getProperty(BrokerConstants.PERSISTENT_QUEUE_TYPE_PROPERTY_NAME);
         if ("h2".equalsIgnoreCase(queueType)) {
-            LOG.info("Configuring H2 queue store");
+            log.info("Configuring H2 queue store");
             queueRepository = h2Builder.queueRepository();
         } else if ("segmented".equalsIgnoreCase(queueType)) {
-            LOG.info("Configuring segmented queue store to {}", dataPath);
+            log.info("Configuring segmented queue store to {}", dataPath);
             final int pageSize = config.intProp(BrokerConstants.SEGMENTED_QUEUE_PAGE_SIZE, BrokerConstants.DEFAULT_SEGMENTED_QUEUE_PAGE_SIZE);
             final int segmentSize = config.intProp(BrokerConstants.SEGMENTED_QUEUE_SEGMENT_SIZE, BrokerConstants.DEFAULT_SEGMENTED_QUEUE_SEGMENT_SIZE);
             try {
@@ -294,9 +293,9 @@ public class Server {
         try {
             sendTelemetryData(telemetryDoc);
         } catch (IOException e) {
-            LOG.info("Can't reach the telemetry collector");
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Original exception", e);
+            log.info("Can't reach the telemetry collector");
+            if (log.isDebugEnabled()) {
+                log.debug("Original exception", e);
             }
         }
     }
@@ -308,7 +307,7 @@ public class Server {
             try {
                 return new String(Files.readAllBytes(uuidFilePath), StandardCharsets.UTF_8);
             } catch (IOException e) {
-                LOG.error("Problem accessing file path: {}", uuidFilePath, e);
+                log.error("Problem accessing file path: {}", uuidFilePath, e);
             }
         }
         final UUID uuid = UUID.randomUUID();
@@ -318,7 +317,7 @@ public class Server {
             f.write(uuid.toString());
             f.close();
         } catch (IOException e) {
-            LOG.error("Problem writing new UUID to file path: {}", uuidFilePath, e);
+            log.error("Problem writing new UUID to file path: {}", uuidFilePath, e);
         }
 
         return uuid.toString();
@@ -355,14 +354,14 @@ public class Server {
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
             final int status = con.getResponseCode();
             if (status != HttpURLConnection.HTTP_OK) {
-                LOG.debug("What's my IP service replied with {}", status);
+                log.debug("What's my IP service replied with {}", status);
                 return "";
             }
 
             BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
             return in.readLine();
         } catch (Exception e) {
-            LOG.debug("Can't connect to what's my IP service");
+            log.debug("Can't connect to what's my IP service");
             return "";
         }
     }
@@ -383,7 +382,7 @@ public class Server {
         }
 
         int status = con.getResponseCode();
-        LOG.trace("Response code is {}", status);
+        log.trace("Response code is {}", status);
 
         boolean redirect = false;
 
@@ -395,7 +394,7 @@ public class Server {
                 redirect = true;
         }
 
-        LOG.trace("Response Code: {} ", status);
+        log.trace("Response Code: {} ", status);
 
         if (redirect) {
 
@@ -415,7 +414,7 @@ public class Server {
                 os.write(input, 0, input.length);
             }
 
-            LOG.trace("Redirect to URL: {}", newUrl);
+            log.trace("Redirect to URL: {}", newUrl);
         }
 
         BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
@@ -425,13 +424,13 @@ public class Server {
             content.append(inputLine);
         }
         in.close();
-        LOG.trace("Content: {}", content);
+        log.trace("Content: {}", content);
 
         con.disconnect();
     }
 
     private IAuthorizatorPolicy initializeAuthorizatorPolicy(IAuthorizatorPolicy authorizatorPolicy, IConfig props) {
-        LOG.debug("Configuring MQTT authorizator policy");
+        log.debug("Configuring MQTT authorizator policy");
         String authorizatorClassName = props.getProperty(BrokerConstants.AUTHORIZATOR_CLASS_NAME, "");
         if (authorizatorPolicy == null && !authorizatorClassName.isEmpty()) {
             authorizatorPolicy = loadClass(authorizatorClassName, IAuthorizatorPolicy.class, IConfig.class, props);
@@ -442,22 +441,22 @@ public class Server {
             if (aclFilePath != null && !aclFilePath.isEmpty()) {
                 authorizatorPolicy = new DenyAllAuthorizatorPolicy();
                 try {
-                    LOG.info("Parsing ACL file. Path = {}", aclFilePath);
+                    log.info("Parsing ACL file. Path = {}", aclFilePath);
                     IResourceLoader resourceLoader = props.getResourceLoader();
                     authorizatorPolicy = ACLFileParser.parse(resourceLoader.loadResource(aclFilePath));
                 } catch (ParseException pex) {
-                    LOG.error("Unable to parse ACL file. path = {}", aclFilePath, pex);
+                    log.error("Unable to parse ACL file. path = {}", aclFilePath, pex);
                 }
             } else {
                 authorizatorPolicy = new PermitAllAuthorizatorPolicy();
             }
-            LOG.info("Authorizator policy {} instance will be used", authorizatorPolicy.getClass().getName());
+            log.info("Authorizator policy {} instance will be used", authorizatorPolicy.getClass().getName());
         }
         return authorizatorPolicy;
     }
 
     private IAuthenticator initializeAuthenticator(IAuthenticator authenticator, IConfig props) {
-        LOG.debug("Configuring MQTT authenticator");
+        log.debug("Configuring MQTT authenticator");
         String authenticatorClassName = props.getProperty(BrokerConstants.AUTHENTICATOR_CLASS_NAME, "");
 
         if (authenticator == null && !authenticatorClassName.isEmpty()) {
@@ -472,13 +471,13 @@ public class Server {
             } else {
                 authenticator = new ResourceAuthenticator(resourceLoader, passwdPath);
             }
-            LOG.info("An {} authenticator instance will be used", authenticator.getClass().getName());
+            log.info("An {} authenticator instance will be used", authenticator.getClass().getName());
         }
         return authenticator;
     }
 
     private void initInterceptors(IConfig props, List<? extends InterceptHandler> embeddedObservers) {
-        LOG.info("Configuring message interceptors...");
+        log.info("Configuring message interceptors...");
 
         List<InterceptHandler> observers = new ArrayList<>(embeddedObservers);
         String interceptorClassName = props.getProperty(BrokerConstants.INTERCEPT_HANDLER_PROPERTY_NAME);
@@ -498,7 +497,7 @@ public class Server {
         try {
             // check if constructor with constructor arg class parameter
             // exists
-            LOG.info("Invoking constructor with {} argument. ClassName={}, interfaceName={}",
+            log.info("Invoking constructor with {} argument. ClassName={}, interfaceName={}",
                      constructorArgClass.getName(), className, intrface.getName());
             instance = this.getClass().getClassLoader()
                 .loadClass(className)
@@ -506,13 +505,13 @@ public class Server {
                 .getConstructor(constructorArgClass)
                 .newInstance(props);
         } catch (InstantiationException | IllegalAccessException | ClassNotFoundException ex) {
-            LOG.warn("Unable to invoke constructor with {} argument. ClassName={}, interfaceName={}, cause={}, " +
+            log.warn("Unable to invoke constructor with {} argument. ClassName={}, interfaceName={}, cause={}, " +
                      "errorMessage={}", constructorArgClass.getName(), className, intrface.getName(), ex.getCause(),
                      ex.getMessage());
             return null;
         } catch (NoSuchMethodException | InvocationTargetException e) {
             try {
-                LOG.info("Invoking default constructor. ClassName={}, interfaceName={}", className, intrface.getName());
+                log.info("Invoking default constructor. ClassName={}, interfaceName={}", className, intrface.getName());
                 // fallback to default constructor
                 instance = this.getClass().getClassLoader()
                     .loadClass(className)
@@ -520,7 +519,7 @@ public class Server {
                     .getDeclaredConstructor().newInstance();
             } catch (InstantiationException | IllegalAccessException | ClassNotFoundException |
                 NoSuchMethodException | InvocationTargetException ex) {
-                LOG.error("Unable to invoke default constructor. ClassName={}, interfaceName={}, cause={}, " +
+                log.error("Unable to invoke default constructor. ClassName={}, interfaceName={}, cause={}, " +
                           "errorMessage={}", className, intrface.getName(), ex.getCause(), ex.getMessage());
                 return null;
             }
@@ -541,24 +540,24 @@ public class Server {
     public RoutingResults internalPublish(MqttPublishMessage msg, final String clientId) {
         final int messageID = msg.variableHeader().packetId();
         if (!initialized) {
-            LOG.error("Moquette is not started, internal message cannot be published. CId: {}, messageId: {}", clientId,
+            log.error("Moquette is not started, internal message cannot be published. CId: {}, messageId: {}", clientId,
                       messageID);
             throw new IllegalStateException("Can't publish on a integration is not yet started");
         }
-        LOG.trace("Internal publishing message CId: {}, messageId: {}", clientId, messageID);
+        log.trace("Internal publishing message CId: {}, messageId: {}", clientId, messageID);
         final RoutingResults routingResults = dispatcher.internalPublish(msg);
         msg.payload().release();
         return routingResults;
     }
 
     public void stopServer() {
-        LOG.info("Unbinding integration from the configured ports");
+        log.info("Unbinding integration from the configured ports");
         if (acceptor == null) {
-            LOG.error("Closing a badly started server, exit immediately");
+            log.error("Closing a badly started server, exit immediately");
             return;
         }
         acceptor.close();
-        LOG.trace("Stopping MQTT protocol processor");
+        log.trace("Stopping MQTT protocol processor");
         initialized = false;
 
         // calling shutdown() does not actually stop tasks that are not cancelled,
@@ -568,13 +567,13 @@ public class Server {
         sessions.close();
 
         if (h2Builder != null) {
-            LOG.trace("Shutting down H2 persistence {}");
+            log.trace("Shutting down H2 persistence {}");
             h2Builder.closeStore();
         }
 
         interceptor.stop();
         dispatcher.terminate();
-        LOG.info("Moquette integration has been stopped.");
+        log.info("Moquette integration has been stopped.");
     }
 
     public int getPort() {
@@ -606,11 +605,11 @@ public class Server {
      */
     public void addInterceptHandler(InterceptHandler interceptHandler) {
         if (!initialized) {
-            LOG.error("Moquette is not started, MQTT message interceptor cannot be added. InterceptorId={}",
+            log.error("Moquette is not started, MQTT message interceptor cannot be added. InterceptorId={}",
                 interceptHandler.getID());
             throw new IllegalStateException("Can't register interceptors on a integration that is not yet started");
         }
-        LOG.info("Adding MQTT message interceptor. InterceptorId={}", interceptHandler.getID());
+        log.info("Adding MQTT message interceptor. InterceptorId={}", interceptHandler.getID());
         interceptor.addInterceptHandler(interceptHandler);
     }
 
@@ -621,11 +620,11 @@ public class Server {
      */
     public void removeInterceptHandler(InterceptHandler interceptHandler) {
         if (!initialized) {
-            LOG.error("Moquette is not started, MQTT message interceptor cannot be removed. InterceptorId={}",
+            log.error("Moquette is not started, MQTT message interceptor cannot be removed. InterceptorId={}",
                 interceptHandler.getID());
             throw new IllegalStateException("Can't deregister interceptors from a integration that is not yet started");
         }
-        LOG.info("Removing MQTT message interceptor. InterceptorId={}", interceptHandler.getID());
+        log.info("Removing MQTT message interceptor. InterceptorId={}", interceptHandler.getID());
         interceptor.removeInterceptHandler(interceptHandler);
     }
 

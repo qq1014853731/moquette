@@ -5,6 +5,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.util.internal.ObjectUtil;
 
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLSessionContext;
 
 /**
  * @author 楚孔响
@@ -30,7 +31,8 @@ public class ReloadableSslContext extends DelegatingSslContext {
 	 */
 	public synchronized void reload(SslContext newContext) {
 		synchronized (ctx) {
-			ctx = newContext;
+            SSLSessionContext sslSessionContext = ctx.sessionContext();
+            ctx = newContext;
 		}
 	}
 }

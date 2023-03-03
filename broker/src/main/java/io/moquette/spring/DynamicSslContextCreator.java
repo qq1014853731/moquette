@@ -14,38 +14,52 @@
  * You may elect to redistribute this code under either of these licenses.
  */
 
-package io.moquette.broker;
+package io.moquette.spring;
 
+import cn.hutool.core.io.resource.ResourceUtil;
 import io.moquette.BrokerConstants;
+import io.moquette.broker.ISslContextCreator;
 import io.moquette.broker.config.IConfig;
+import io.moquette.spring.core.AdvancedTlsX509KeyManager;
+import io.moquette.spring.core.AdvancedTlsX509TrustManager;
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslProvider;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.TrustManagerFactory;
-import java.io.*;
-import java.net.URL;
-import java.security.*;
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
-import java.util.Collections;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
 import java.util.Objects;
 
 /**
  * Moquette integration implementation to load SSL certificate from local filesystem path configured in
  * config file.
  */
-class DefaultMoquetteSslContextCreator implements ISslContextCreator {
+public class DynamicSslContextCreator implements ISslContextCreator {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultMoquetteSslContextCreator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DynamicSslContextCreator.class);
 
     private final IConfig props;
 
-    DefaultMoquetteSslContextCreator(IConfig props) {
+    @Getter
+    private AdvancedTlsX509KeyManager keyManager;
+
+    @Getter
+    private AdvancedTlsX509TrustManager trustManager;
+
+    public DynamicSslContextCreator(IConfig props) {
         this.props = Objects.requireNonNull(props);
     }
 
@@ -60,24 +74,24 @@ class DefaultMoquetteSslContextCreator implements ISslContextCreator {
         }
 
         try {
-            SslProvider sslProvider = getSSLProvider();
+            SslProvider sslProvider = getSslProvider();
             KeyStore ks = loadKeyStore();
             SslContextBuilder contextBuilder;
             switch (sslProvider) {
-                case JDK:
-                    contextBuilder = builderWithJdkProvider(ks, keyPassword);
-                    break;
-                case OPENSSL:
-                case OPENSSL_REFCNT:
-                    contextBuilder = builderWithOpenSSLProvider(ks, keyPassword);
-                    break;
-                default:
-                    LOG.error("unsupported SSL provider {}", sslProvider);
-                    return null;
+            case JDK:
+                contextBuilder = builderWithJdkProvider(ks, keyPassword);
+                break;
+            case OPENSSL:
+            case OPENSSL_REFCNT:
+                contextBuilder = builderWithOpenSslProvider(ks, keyPassword);
+                break;
+            default:
+                LOG.error("unsupported SSL provider {}", sslProvider);
+                return null;
             }
             // if client authentification is enabled a trustmanager needs to be added to the ServerContext
             String sNeedsClientAuth = props.getProperty(BrokerConstants.NEED_CLIENT_AUTH, "false");
-            if (Boolean.valueOf(sNeedsClientAuth)) {
+            if (Boolean.parseBoolean(sNeedsClientAuth)) {
                 addClientAuthentication(ks, contextBuilder);
             }
             contextBuilder.sslProvider(sslProvider);
@@ -111,13 +125,10 @@ class DefaultMoquetteSslContextCreator implements ISslContextCreator {
         return keyStore;
     }
 
-    private static SslContextBuilder builderWithJdkProvider(KeyStore ks, String keyPassword)
-        throws GeneralSecurityException {
-        LOG.info("Initializing key manager...");
-        final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-        kmf.init(ks, keyPassword.toCharArray());
-        LOG.info("Initializing SSL context...");
-        return SslContextBuilder.forServer(kmf);
+    private SslContextBuilder builderWithJdkProvider(KeyStore ks, String keyPassword)
+            throws GeneralSecurityException {
+        this.keyManager = new AdvancedTlsX509KeyManager(ks, keyPassword.toCharArray());
+        return SslContextBuilder.forServer(this.keyManager);
     }
 
     /**
@@ -126,31 +137,26 @@ class DefaultMoquetteSslContextCreator implements ISslContextCreator {
      * <p>
      * TODO: SNI is currently not supported, we use only the first found private key.
      */
-    private static SslContextBuilder builderWithOpenSSLProvider(KeyStore ks, String keyPassword)
-        throws GeneralSecurityException {
-        for (String alias : Collections.list(ks.aliases())) {
-            if (ks.entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)) {
-                PrivateKey key = (PrivateKey) ks.getKey(alias, keyPassword.toCharArray());
-                Certificate[] chain = ks.getCertificateChain(alias);
-                X509Certificate[] certChain = new X509Certificate[chain.length];
-                System.arraycopy(chain, 0, certChain, 0, chain.length);
-                return SslContextBuilder.forServer(key, certChain);
-            }
-        }
-        throw new KeyManagementException("the SSL key-store does not contain a private key");
+    private SslContextBuilder builderWithOpenSslProvider(KeyStore ks, String keyPassword)
+        throws GeneralSecurityException, IOException {
+        this.keyManager = new AdvancedTlsX509KeyManager(ks, keyPassword.toCharArray());
+        return SslContextBuilder.forServer(keyManager);
     }
 
-    private static void addClientAuthentication(KeyStore ks, SslContextBuilder contextBuilder)
-        throws NoSuchAlgorithmException, KeyStoreException {
+    private void addClientAuthentication(KeyStore ks, SslContextBuilder contextBuilder)
+        throws NoSuchAlgorithmException, KeyStoreException, CertificateException {
         LOG.warn("Client authentication is enabled. The keystore will be used as a truststore.");
         // use keystore as truststore, as integration needs to trust certificates signed by the integration certificates
-        TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-        tmf.init(ks);
         contextBuilder.clientAuth(ClientAuth.REQUIRE);
-        contextBuilder.trustManager(tmf);
+        this.trustManager = AdvancedTlsX509TrustManager.newBuilder()
+            .setVerification(AdvancedTlsX509TrustManager.Verification.InsecurelySkipAllVerification)
+            .setSslSocketAndEnginePeerVerifier(null)
+            .build();
+        trustManager.updateTrustCredentials(ks);
+        contextBuilder.trustManager(trustManager);
     }
 
-    private SslProvider getSSLProvider() {
+    private SslProvider getSslProvider() {
         String providerName = props.getProperty(BrokerConstants.SSL_PROVIDER, SslProvider.JDK.name());
         try {
             return SslProvider.valueOf(providerName);
@@ -160,17 +166,17 @@ class DefaultMoquetteSslContextCreator implements ISslContextCreator {
         }
     }
 
-    private InputStream jksDatastore(String jksPath) throws FileNotFoundException {
-        URL jksUrl = getClass().getClassLoader().getResource(jksPath);
-        if (jksUrl != null) {
-            LOG.info("Starting with jks at {}, jks normal {}", jksUrl.toExternalForm(), jksUrl);
-            return getClass().getClassLoader().getResourceAsStream(jksPath);
+    private InputStream jksDatastore(String jksPath) throws IOException {
+        InputStream inputStream = ResourceUtil.getStreamSafe(jksPath);
+        if (inputStream != null) {
+            LOG.info("Starting with jks at {}", jksPath);
+            return inputStream;
         }
         LOG.warn("No keystore has been found in the bundled resources. Scanning filesystem...");
         File jksFile = new File(jksPath);
         if (jksFile.exists()) {
             LOG.info("Loading external keystore. Url = {}.", jksFile.getAbsolutePath());
-            return new FileInputStream(jksFile);
+            return Files.newInputStream(jksFile.toPath());
         }
         throw new FileNotFoundException("The keystore file does not exist. Url = " + jksFile.getAbsolutePath());
     }
