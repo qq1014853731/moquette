@@ -90,11 +90,9 @@ public class MqttServerAutoConfiguration implements ApplicationContextAware {
 
 	/**
 	 * MqttBrokerServer 实例
-	 * @param brokerProperties 配置bean
-	 * @param sslContextCreatorProvider sslContext创建器
 	 * @return 实例Bean
 	 */
-	@Bean
+	@Bean(destroyMethod = "stopServer")
 	@ConditionalOnMissingBean(Server.class)
 	@ConditionalOnBean(BrokerProperties.class)
 	public Server server() throws IOException {

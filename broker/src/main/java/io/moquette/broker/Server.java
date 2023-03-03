@@ -567,7 +567,7 @@ public class Server {
         sessions.close();
 
         if (h2Builder != null) {
-            log.trace("Shutting down H2 persistence {}");
+            log.trace("Shutting down H2 persistence");
             h2Builder.closeStore();
         }
 

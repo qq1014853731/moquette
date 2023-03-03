@@ -31,7 +31,6 @@ public class MqttServerRunner implements ApplicationRunner {
             brokerProperties.getInterceptHandlers(),
             sslContextCreatorProvider.getIfAvailable(), null, null);
         printSuccess(brokerProperties);
-        Runtime.getRuntime().addShutdownHook(new Thread(server::stopServer));
     }
 
     public void printSuccess(BrokerProperties brokerProperties) {
