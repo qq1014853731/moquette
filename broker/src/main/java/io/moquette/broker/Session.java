@@ -15,8 +15,6 @@
  */
 package io.moquette.broker;
 
-import static io.moquette.BrokerConstants.FLIGHT_BEFORE_RESEND_MS;
-import static io.moquette.BrokerConstants.INFLIGHT_WINDOW_SIZE;
 import io.moquette.broker.SessionRegistry.EnqueuedMessage;
 import io.moquette.broker.SessionRegistry.PublishedMessage;
 import io.moquette.broker.subscriptions.Subscription;
@@ -29,19 +27,15 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static io.moquette.BrokerConstants.FLIGHT_BEFORE_RESEND_MS;
+import static io.moquette.BrokerConstants.INFLIGHT_WINDOW_SIZE;
 
 class Session {
 
@@ -395,9 +389,9 @@ class Session {
                 mqttConnection.sendIfWritableElseDrop(pubRel);
             } else {
                 final SessionRegistry.PublishedMessage pubMsg = (SessionRegistry.PublishedMessage) msg;
-                final Topic topic = pubMsg.topic;
-                final MqttQoS qos = pubMsg.publishingQos;
-                final ByteBuf payload = pubMsg.payload;
+                final Topic topic = pubMsg.getTopic();
+                final MqttQoS qos = pubMsg.getPublishingQos();
+                final ByteBuf payload = pubMsg.getPayload();
                 // message fetched from map, but not removed from map. No need to duplicate or release.
                 MqttPublishMessage publishMsg = publishNotRetainedDuplicated(notAckPacketId, topic, qos, payload);
                 inflightTimeouts.add(new InFlightPacket(notAckPacketId.packetId, FLIGHT_BEFORE_RESEND_MS));
@@ -445,9 +439,9 @@ class Session {
             inflightTimeouts.add(new InFlightPacket(sendPacketId, FLIGHT_BEFORE_RESEND_MS));
             final SessionRegistry.PublishedMessage msgPub = (SessionRegistry.PublishedMessage) msg;
             MqttPublishMessage publishMsg = MQTTConnection.createNotRetainedPublishMessage(
-                msgPub.topic.toString(),
-                msgPub.publishingQos,
-                msgPub.payload, sendPacketId);
+                msgPub.getTopic().toString(),
+                msgPub.getPublishingQos(),
+                msgPub.getPayload(), sendPacketId);
             mqttConnection.sendPublish(publishMsg);
 
             // we fetched msg from a map, but the release is cancelled out by the above retain

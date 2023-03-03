@@ -1,15 +1,14 @@
 package io.moquette.broker;
 
-import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.moquette.spring.support.RedisRepositorySupport;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * @author 楚孔响
@@ -17,6 +16,9 @@ import java.util.stream.Collectors;
  * @date 2023/2/28 19:46
  */
 public class RedisQueueRepository implements IQueueRepository {
+
+
+    private static final Map<String, RedisQueue> CACHE = new HashMap<>();
 
     @Getter
     private final StringRedisTemplate redisTemplate;
@@ -38,23 +40,26 @@ public class RedisQueueRepository implements IQueueRepository {
 
     @Override
     public Set<String> listQueueNames() {
-        Set<String> keys = redisTemplate.keys(keyPrefix + ".*");
-        return keys == null ? new HashSet<>() : keys.stream().map(key -> StrUtil.removePrefix(key, keyPrefix)).collect(Collectors.toSet());
+        return CACHE.keySet();
     }
 
     @Override
     public boolean containsQueue(String clientId) {
-        Boolean hasKey = redisTemplate.hasKey(keyPrefix + clientId);
-        return hasKey == null || hasKey;
+        return CACHE.containsKey(clientId);
     }
+
 
     @SneakyThrows
     @Override
     public SessionMessageQueue<SessionRegistry.EnqueuedMessage> getOrCreateQueue(String clientId) {
-
+        return CACHE.computeIfAbsent(clientId, cid ->  new RedisQueue(redisTemplate, objectMapper, keyPrefix + cid) );
     }
 
     @Override
     public void close() {
+        for (RedisQueue redisQueue : CACHE.values()) {
+            redisQueue.closeAndPurge();
+        }
+        CACHE.clear();
     }
 }

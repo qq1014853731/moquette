@@ -15,18 +15,15 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 @EqualsAndHashCode(callSuper = true)
 public class RedisQueue extends AbstractSessionMessageQueue<SessionRegistry.EnqueuedMessage> {
 
-    private String queueName;
-
     private final String key;
 
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
 
-    public RedisQueue(RedisQueueRepository redisQueueRepository, String queueName) {
-        this.queueName = queueName;
-        this.objectMapper = redisQueueRepository.getObjectMapper();
-        this.redisTemplate = redisQueueRepository.getRedisTemplate();
-        this.key = redisQueueRepository.getKeyPrefix() + queueName;
+    public RedisQueue(StringRedisTemplate redisTemplate, ObjectMapper objectMapper, String key) {
+        this.objectMapper = objectMapper;
+        this.redisTemplate = redisTemplate;
+        this.key = key;
     }
 
     @SneakyThrows

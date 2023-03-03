@@ -15,14 +15,21 @@
  */
 package io.moquette.broker;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.moquette.broker.Session.SessionStatus;
 import io.moquette.broker.subscriptions.ISubscriptionsDirectory;
 import io.moquette.broker.subscriptions.Subscription;
 import io.moquette.broker.subscriptions.Topic;
+import io.moquette.spring.serializer.ByteBufDeserializer;
+import io.moquette.spring.serializer.ByteBufSerializer;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.mqtt.MqttConnectMessage;
 import io.netty.handler.codec.mqtt.MqttQoS;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,12 +59,18 @@ public class SessionRegistry {
         public void retain() {}
     }
 
+    @Data
+    @EqualsAndHashCode(callSuper = true)
+    @NoArgsConstructor
     public static class PublishedMessage extends EnqueuedMessage {
 
-        final Topic topic;
-        final MqttQoS publishingQos;
-        final ByteBuf payload;
-        final boolean retained;
+        private Topic topic;
+        private MqttQoS publishingQos;
+
+        @JsonSerialize(using = ByteBufSerializer.class)
+        @JsonDeserialize(using = ByteBufDeserializer.class)
+        private ByteBuf payload;
+        private boolean retained;
 
         public PublishedMessage(Topic topic, MqttQoS publishingQos, ByteBuf payload, boolean retained) {
             this.topic = topic;
