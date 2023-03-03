@@ -69,7 +69,7 @@ public class RedisRepositorySupport implements RepositorySupport {
     }
 
     public RedisRepositorySupport(RedisConnectionFactory redisConnectionFactory) {
-        this.stringRedisTemplate = new StringRedisTemplate(redisConnectionFactory);
+        this(new StringRedisTemplate(redisConnectionFactory));
     }
 
     public ObjectMapper getObjectMapper() {

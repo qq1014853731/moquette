@@ -1,6 +1,5 @@
 package io.moquette.spring.core;
 
-import cn.hutool.extra.spring.EnableSpringUtil;
 import org.springframework.context.annotation.Import;
 
 import java.lang.annotation.*;
@@ -15,7 +14,6 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @Import(value = MqttServerAutoConfiguration.class)
-@EnableSpringUtil
 public @interface EnableMqttServer {
 
     RepositoryType repositoryType() default RepositoryType.MEMORY;

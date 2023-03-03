@@ -15,7 +15,6 @@
  */
 package io.moquette.broker;
 
-import cn.hutool.extra.spring.SpringUtil;
 import io.moquette.BrokerConstants;
 import io.moquette.broker.config.*;
 import io.moquette.broker.security.*;
@@ -28,6 +27,7 @@ import io.moquette.persistence.H2Builder;
 import io.moquette.persistence.MemorySubscriptionsRepository;
 import io.moquette.persistence.RedisSubscriptionRepository;
 import io.moquette.persistence.SegmentQueueRepository;
+import io.moquette.spring.core.MqttServerAutoConfiguration;
 import io.moquette.spring.support.RedisRepositorySupport;
 import io.moquette.spring.support.RepositorySupport;
 import io.netty.handler.codec.mqtt.MqttPublishMessage;
@@ -213,7 +213,7 @@ public class Server {
         } else {
             RepositorySupport repositorySupport = null;
             try {
-                repositorySupport = SpringUtil.getBean(RepositorySupport.class);
+                repositorySupport = MqttServerAutoConfiguration.applicationContext.getBean(RepositorySupport.class);
             } catch (Exception ignore) {}
             if (repositorySupport == null) {
                 // load default repository

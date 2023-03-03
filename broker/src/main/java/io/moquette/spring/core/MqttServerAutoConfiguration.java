@@ -17,8 +17,11 @@ import io.moquette.spring.ReloadableSslContext;
 import io.netty.handler.ssl.SslContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeansException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Bean;
 
 import java.io.IOException;
@@ -35,8 +38,9 @@ import java.util.Set;
  */
 @Slf4j
 @RequiredArgsConstructor
-public class MqttServerAutoConfiguration {
+public class MqttServerAutoConfiguration implements ApplicationContextAware {
 
+    public static ApplicationContext applicationContext;
 
 	/**
 	 * 系统配置环境变量前缀，后缀为配置文件的key，可以动态配置
@@ -150,4 +154,9 @@ public class MqttServerAutoConfiguration {
 			log.info(">>>>  MOQUETTE {} 启动成功, WebSocket-MQTT-SSL 端口：{} 地址：{}", Server.MOQUETTE_VERSION, websocketPort, websocketPath);
 		}
 	}
+
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        MqttServerAutoConfiguration.applicationContext = applicationContext;
+    }
 }
