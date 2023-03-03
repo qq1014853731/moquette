@@ -1,20 +1,16 @@
 package io.moquette.spring.core;
 
 import cn.hutool.core.convert.Convert;
-import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.system.SystemUtil;
-import io.moquette.broker.ISslContextCreator;
 import io.moquette.broker.Server;
 import io.moquette.broker.config.ClasspathResourceLoader;
 import io.moquette.broker.config.IConfig;
-import io.moquette.broker.config.MemoryConfig;
 import io.moquette.broker.config.ResourceLoaderConfig;
 import io.moquette.spring.BrokerProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.ApplicationContext;
@@ -27,7 +23,6 @@ import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 
 /**
  * @author 楚孔响
@@ -58,7 +53,7 @@ public class MqttServerAutoConfiguration implements ApplicationContextAware {
 	}
 
 	/**
-	 * @param mqttDefaultConfig 原有配置文件配置
+	 * @param config 原有配置文件配置
 	 * @param mqttConfigurationCustomizers 自定义配置方法
 	 * @return 自定义配置
 	 */
@@ -66,23 +61,20 @@ public class MqttServerAutoConfiguration implements ApplicationContextAware {
 	@ConditionalOnBean(value = {IConfig.class})
 	public BrokerProperties brokerProperties(IConfig config, List<MqttConfigurationCustomizer> mqttConfigurationCustomizers) {
 		// config转properties
-		Field[] fields = ReflectUtil.getFields(config.getClass(), field -> field.getType() == Properties.class);
-		Assert.notEmpty(fields, "BrokerProperties无法获取properties属性");
-		Field propertiesField = fields[0];
-		Properties properties = (Properties) ReflectUtil.getFieldValue(config, propertiesField);
+		Properties properties = config.getProperties();
 
 		BrokerProperties brokerProperties = new BrokerProperties();
 		Collection<String> values = BrokerProperties.FIELD_NAME_CACHE_MAP.values();
 		for (String configKey : values) {
-			Object o = properties.get(configKey);
-			if (o == null) {
-				// 配置文件取不到就去系统环境取，取系统环境变量时需要前缀：mqtt.
-				o = SystemUtil.get(SYSTEM_ENV_PREFIX + configKey);
-			}
-			if (o == null) {
-				continue;
-			}
-			String configValue = String.valueOf(o);
+            Object value = SystemUtil.get(SYSTEM_ENV_PREFIX + configKey);
+            if (value == null) {
+                value = properties.get(configKey);
+            }
+            if (value == null) {
+                continue;
+            }
+
+			String configValue = String.valueOf(value);
 			String fieldName = BrokerProperties.getFIELD_NAME_CACHE_MAP().getKey(configKey);
 			Field field = ReflectUtil.getField(BrokerProperties.class, fieldName);
 			if (field != null) {
@@ -99,51 +91,14 @@ public class MqttServerAutoConfiguration implements ApplicationContextAware {
 	/**
 	 * MqttBrokerServer 实例
 	 * @param brokerProperties 配置bean
-	 * @param interceptHandlers 拦截器
+	 * @param sslContextCreatorProvider sslContext创建器
 	 * @return 实例Bean
 	 */
 	@Bean
 	@ConditionalOnMissingBean(Server.class)
 	@ConditionalOnBean(BrokerProperties.class)
-	public Server server(BrokerProperties brokerProperties,
-                         ObjectProvider<ISslContextCreator> sslContextCreatorProvider) throws IOException {
-		Properties properties = new Properties();
-		Set<String> fieldNames = BrokerProperties.FIELD_NAME_CACHE_MAP.keySet();
-		for (String fieldName : fieldNames) {
-			String configKey = BrokerProperties.FIELD_NAME_CACHE_MAP.get(fieldName);
-			Object configValue = ReflectUtil.getFieldValue(brokerProperties, fieldName);
-			if (configValue != null) {
-				properties.setProperty(configKey, String.valueOf(configValue));
-			}
-		}
-
-		IConfig config = new MemoryConfig(properties);
-		Server server = new Server();
-		server.startServer(config, brokerProperties.getInterceptHandlers(), sslContextCreatorProvider.getIfAvailable(), null, null);
-		printSuccess(brokerProperties);
-		Runtime.getRuntime().addShutdownHook(new Thread(server::stopServer));
-		return server;
-	}
-
-	public void printSuccess(BrokerProperties brokerProperties) {
-		Integer port = brokerProperties.getPort();
-		if (port != null) {
-			log.info(">>>>  MOQUETTE {} 启动成功, MQTT端口：{}", Server.MOQUETTE_VERSION, port);
-		}
-		Integer sslPort = brokerProperties.getSslPort();
-		if (sslPort != null) {
-			log.info(">>>>  MOQUETTE {} 启动成功, MQTT-SSL 端口：{}", Server.MOQUETTE_VERSION, sslPort);
-		}
-		Integer websocketPort = brokerProperties.getWebsocketPort();
-		if (websocketPort != null) {
-			String websocketPath = brokerProperties.getWebsocketPath();
-			log.info(">>>>  MOQUETTE {} 启动成功, WebSocket-MQTT 端口：{} 地址：{}", Server.MOQUETTE_VERSION, websocketPort, websocketPath);
-		}
-		Integer secureWebsocketPort = brokerProperties.getSecureWebsocketPort();
-		if (secureWebsocketPort != null) {
-			String websocketPath = brokerProperties.getWebsocketPath();
-			log.info(">>>>  MOQUETTE {} 启动成功, WebSocket-MQTT-SSL 端口：{} 地址：{}", Server.MOQUETTE_VERSION, websocketPort, websocketPath);
-		}
+	public Server server() throws IOException {
+		return new Server();
 	}
 
     @Override

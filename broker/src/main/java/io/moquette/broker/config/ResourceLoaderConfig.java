@@ -95,6 +95,11 @@ public class ResourceLoaderConfig extends IConfig {
     }
 
     @Override
+    public Properties getProperties() {
+        return this.m_properties;
+    }
+
+    @Override
     public IResourceLoader getResourceLoader() {
         return resourceLoader;
     }

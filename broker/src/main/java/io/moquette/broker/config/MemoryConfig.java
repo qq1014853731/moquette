@@ -57,6 +57,11 @@ public class MemoryConfig extends IConfig {
     }
 
     @Override
+    public Properties getProperties() {
+        return m_properties;
+    }
+
+    @Override
     public String getProperty(String name, String defaultValue) {
         return m_properties.getProperty(name, defaultValue);
     }

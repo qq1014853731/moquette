@@ -18,6 +18,8 @@ package io.moquette.broker.config;
 
 import io.moquette.BrokerConstants;
 
+import java.util.Properties;
+
 /**
  * Base interface for all configuration implementations (filesystem, memory or classpath)
  */
@@ -34,6 +36,8 @@ public abstract class IConfig {
      * @return property value null if not found.
      * */
     public abstract String getProperty(String name);
+
+    public abstract Properties getProperties();
 
     /**
      * Same semantic of Properties

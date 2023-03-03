@@ -1,7 +1,10 @@
 package io.moquette.spring;
 
 import cn.hutool.core.map.TableMap;
+import cn.hutool.core.util.ReflectUtil;
 import io.moquette.BrokerConstants;
+import io.moquette.broker.config.IConfig;
+import io.moquette.broker.config.MemoryConfig;
 import io.moquette.interception.InterceptHandler;
 import io.netty.handler.ssl.SslProvider;
 import lombok.AccessLevel;
@@ -10,10 +13,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 /**
  * @author 楚孔响
@@ -384,6 +384,19 @@ public class BrokerProperties {
     public BrokerProperties addInterceptHandler(Collection<? extends InterceptHandler> interceptHandlers) {
         this.interceptHandlers.addAll(interceptHandlers);
         return this;
+    }
+
+    public IConfig parse2MemoryConfig() {
+        Properties properties = new Properties();
+        Set<String> fieldNames = BrokerProperties.FIELD_NAME_CACHE_MAP.keySet();
+        for (String fieldName : fieldNames) {
+            String configKey = BrokerProperties.FIELD_NAME_CACHE_MAP.get(fieldName);
+            Object configValue = ReflectUtil.getFieldValue(this, fieldName);
+            if (configValue != null) {
+                properties.setProperty(configKey, String.valueOf(configValue));
+            }
+        }
+        return new MemoryConfig(properties);
     }
 
 }

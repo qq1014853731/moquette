@@ -13,9 +13,9 @@ import java.lang.annotation.*;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-@Import(value = MqttServerAutoConfiguration.class)
+@Import(value = { MqttServerAutoConfiguration.class, MqttServerRunnerAutoConfiguration.class })
 public @interface EnableMqttServer {
 
-    RepositoryType repositoryType() default RepositoryType.MEMORY;
+    boolean autoStart() default true;
 
 }
