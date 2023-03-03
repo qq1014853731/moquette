@@ -3,9 +3,9 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <relativePath>../pom.xml</relativePath>
-        <artifactId>moquette-parent</artifactId>
+        <artifactId>moquette-springboot-parent</artifactId>
         <groupId>io.moquette</groupId>
-        <version>0.17-SNAPSHOT</version>
+        <version>${revision}</version>
     </parent>
 
     <artifactId>moquette-broker</artifactId>
@@ -20,7 +20,6 @@
         <netty.tcnative.version>2.0.52.Final</netty.tcnative.version>
         <paho.version>1.2.5</paho.version>
         <h2.version>2.1.212</h2.version>
-        <redis.version></redis.version>
     </properties>
 
     <dependencies>

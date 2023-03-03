@@ -15,13 +15,14 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <org.projectlombok.version>1.18.24</org.projectlombok.version>
+        <revision>0.17-SNAPSHOT</revision>
     </properties>
 
     <groupId>io.moquette</groupId>
-    <artifactId>moquette-parent</artifactId>
+    <artifactId>moquette-springboot-parent</artifactId>
 
     <packaging>pom</packaging>
-    <version>0.17-SNAPSHOT</version>
+    <version>${revision}</version>
     <name>Moquette MQTT</name>
     <description>Moquette lightweight MQTT Broker</description>
     <inceptionYear>2011</inceptionYear>
