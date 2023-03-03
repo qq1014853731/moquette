@@ -10,7 +10,6 @@ import io.moquette.broker.config.ClasspathResourceLoader;
 import io.moquette.broker.config.IConfig;
 import io.moquette.broker.config.MemoryConfig;
 import io.moquette.broker.config.ResourceLoaderConfig;
-import io.moquette.interception.InterceptHandler;
 import io.moquette.spring.BrokerProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -107,7 +106,6 @@ public class MqttServerAutoConfiguration implements ApplicationContextAware {
 	@ConditionalOnMissingBean(Server.class)
 	@ConditionalOnBean(BrokerProperties.class)
 	public Server server(BrokerProperties brokerProperties,
-                         List<InterceptHandler> interceptHandlers,
                          ObjectProvider<ISslContextCreator> sslContextCreatorProvider) throws IOException {
 		Properties properties = new Properties();
 		Set<String> fieldNames = BrokerProperties.FIELD_NAME_CACHE_MAP.keySet();
@@ -118,9 +116,10 @@ public class MqttServerAutoConfiguration implements ApplicationContextAware {
 				properties.setProperty(configKey, String.valueOf(configValue));
 			}
 		}
+
 		IConfig config = new MemoryConfig(properties);
 		Server server = new Server();
-		server.startServer(config, interceptHandlers, sslContextCreatorProvider.getIfAvailable(), null, null);
+		server.startServer(config, brokerProperties.getInterceptHandlers(), sslContextCreatorProvider.getIfAvailable(), null, null);
 		printSuccess(brokerProperties);
 		Runtime.getRuntime().addShutdownHook(new Thread(server::stopServer));
 		return server;

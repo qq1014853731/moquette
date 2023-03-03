@@ -53,20 +53,22 @@ public class MqttBrokerConfiguration {
 	/**
 	 * dynamic modify config properties
 	 */
-	@Bean
-	public MqttConfigurationCustomizer mqttConfigurationCustomizer() {
-		return properties -> {
-			properties.setPort(1883);
-			properties.setPersistenceEnabled(Boolean.FALSE);
-			properties.setSslProvider(SslProvider.OPENSSL);
-			properties.setSslPort(8883);
-			properties.setJksPath("certs/server.p12");
-			properties.setKeyStoreType("pkcs12");
-			properties.setKeyStorePassword("passw0rdsrv");
-			properties.setKeyManagerPassword("passw0rdsrv");
-			properties.setTelemetryEnabled(false);
-		};
-	}
+    @Bean
+    public MqttConfigurationCustomizer mqttConfigurationCustomizer() {
+        return properties -> {
+            properties.setPort(1883)
+                .setPersistenceEnabled(Boolean.FALSE)
+                .setSslProvider(SslProvider.OPENSSL)
+                .setSslPort(8883)
+                .setJksPath("certs/server.p12")
+                .setKeyStoreType("pkcs12")
+                .setKeyStorePassword("passw0rdsrv")
+                .setKeyManagerPassword("passw0rdsrv")
+                .setTelemetryEnabled(false)
+                // add intercept handler
+                .addInterceptHandler(new PublisherInterceptor());
+        };
+    }
 
 	/**
 	 * use dynamic ssl content

@@ -2,9 +2,18 @@ package io.moquette.spring;
 
 import cn.hutool.core.map.TableMap;
 import io.moquette.BrokerConstants;
+import io.moquette.interception.InterceptHandler;
 import io.netty.handler.ssl.SslProvider;
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.Accessors;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * @author 楚孔响
@@ -12,6 +21,7 @@ import lombok.Getter;
  * @date 2023/2/24 11:15
  */
 @Data
+@Accessors(chain = true)
 public class BrokerProperties {
 
 	/**
@@ -305,6 +315,7 @@ public class BrokerProperties {
 	 * 与配置文件字段映射关系缓存
 	 */
 	@Getter
+    @Setter(AccessLevel.NONE)
 	public static final TableMap<String, String> FIELD_NAME_CACHE_MAP = new TableMap<String, String>(){
 		{
 			put("interceptHandler", "intercept.handler");
@@ -356,4 +367,23 @@ public class BrokerProperties {
 			put("storageClass", "storage_class");
 		}
 	};
+
+    /**
+     * custom intercept handlers
+     */
+    @Getter
+    @Setter(AccessLevel.NONE)
+    private List<InterceptHandler> interceptHandlers = new ArrayList<>();
+    public BrokerProperties addInterceptHandler(InterceptHandler... interceptHandlers) {
+        if (interceptHandlers == null || interceptHandlers.length == 0) {
+            return this;
+        }
+        return addInterceptHandler(Arrays.asList(interceptHandlers));
+    }
+
+    public BrokerProperties addInterceptHandler(Collection<? extends InterceptHandler> interceptHandlers) {
+        this.interceptHandlers.addAll(interceptHandlers);
+        return this;
+    }
+
 }
