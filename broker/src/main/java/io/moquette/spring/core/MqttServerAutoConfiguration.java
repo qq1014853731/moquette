@@ -4,6 +4,7 @@ import cn.hutool.core.convert.Convert;
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.system.SystemUtil;
+import io.moquette.broker.ISslContextCreator;
 import io.moquette.broker.Server;
 import io.moquette.broker.config.ClasspathResourceLoader;
 import io.moquette.broker.config.IConfig;
@@ -14,6 +15,7 @@ import io.moquette.spring.BrokerProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.ApplicationContext;
@@ -105,7 +107,8 @@ public class MqttServerAutoConfiguration implements ApplicationContextAware {
 	@ConditionalOnMissingBean(Server.class)
 	@ConditionalOnBean(BrokerProperties.class)
 	public Server server(BrokerProperties brokerProperties,
-						 List<InterceptHandler> interceptHandlers) throws IOException {
+                         List<InterceptHandler> interceptHandlers,
+                         ObjectProvider<ISslContextCreator> sslContextCreatorProvider) throws IOException {
 		Properties properties = new Properties();
 		Set<String> fieldNames = BrokerProperties.FIELD_NAME_CACHE_MAP.keySet();
 		for (String fieldName : fieldNames) {
@@ -117,7 +120,7 @@ public class MqttServerAutoConfiguration implements ApplicationContextAware {
 		}
 		IConfig config = new MemoryConfig(properties);
 		Server server = new Server();
-		server.startServer(config, interceptHandlers, null, null, null);
+		server.startServer(config, interceptHandlers, sslContextCreatorProvider.getIfAvailable(), null, null);
 		printSuccess(brokerProperties);
 		Runtime.getRuntime().addShutdownHook(new Thread(server::stopServer));
 		return server;
